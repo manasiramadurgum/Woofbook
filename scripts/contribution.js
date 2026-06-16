@@ -19,13 +19,32 @@ function getStagedFiles() {
   return output ? output.split("\n") : [];
 }
 
+function hasMergeBase(refA, refB) {
+  try {
+    execSync(`git merge-base ${refA} ${refB}`, { cwd: root, stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getPrChangedFiles(baseRef) {
-  execSync(`git fetch origin ${baseRef} --depth=1`, {
+  const remoteRef = `origin/${baseRef}`;
+  const refspec = `${baseRef}:refs/remotes/${remoteRef}`;
+
+  execSync(`git fetch origin ${refspec}`, {
     cwd: root,
     stdio: "inherit",
   });
 
-  const output = execSync(`git diff --name-only origin/${baseRef}...HEAD`, {
+  if (!hasMergeBase(remoteRef, "HEAD")) {
+    execSync(`git fetch origin ${refspec} --unshallow`, {
+      cwd: root,
+      stdio: "inherit",
+    });
+  }
+
+  const output = execSync(`git diff --name-only ${remoteRef}...HEAD`, {
     cwd: root,
     encoding: "utf8",
   }).trim();
